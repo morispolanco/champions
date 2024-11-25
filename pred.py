@@ -13,48 +13,12 @@ st.title("Chatbot de Predicción de la Champions League")
 # Barra lateral para selección de equipos
 st.sidebar.header("Selecciona los Equipos")
 
-# Función para obtener las ligas que coinciden con la búsqueda
-def buscar_ligas(termino_busqueda="Champions League", temporada=2023):
-    url = "https://v3.football.api-sports.io/leagues"
-    headers = {
-        "x-apisports-key": API_FOOTBALL_API_KEY
-    }
-    params = {
-        "search": termino_busqueda,
-        "season": temporada
-    }
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        return data["response"]
-    else:
-        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
-        return []
-
-# Función para obtener el ID de la liga
-def get_league_id(league_name="UEFA Champions League", season=2023):
-    url = "https://v3.football.api-sports.io/leagues"
-    headers = {
-        "x-apisports-key": API_FOOTBALL_API_KEY
-    }
-    params = {
-        "search": league_name,
-        "season": season
-    }
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        for league in data["response"]:
-            if league["league"]["name"].lower() == league_name.lower():
-                return league["league"]["id"]
-        st.error(f"No se encontró la liga '{league_name}'.")
-        return None
-    else:
-        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
-        return None
+# ID de la UEFA Champions League obtenido previamente
+LEAGUE_ID = 2790  # Reemplaza con el ID correcto obtenido
+SEASON = 2023  # Ajusta según sea necesario
 
 # Función para obtener la lista de equipos
-def get_teams(league_id, season=2023):
+def get_teams(league_id, season=SEASON):
     url = "https://v3.football.api-sports.io/teams"
     headers = {
         "x-apisports-key": API_FOOTBALL_API_KEY
@@ -72,14 +36,8 @@ def get_teams(league_id, season=2023):
         st.error(f"Error al obtener los equipos: {response.status_code} - {response.text}")
         return []
 
-# Obtener el ID de la liga
-league_id = get_league_id()
-
-if league_id is None:
-    st.stop()
-
 # Obtener la lista de equipos
-teams = get_teams(league_id)
+teams = get_teams(LEAGUE_ID, SEASON)
 
 if not teams:
     st.stop()
@@ -96,8 +54,8 @@ user_input = st.text_input("Tú:", "Predice el resultado del partido.")
 
 if st.button("Enviar"):
     if user_input:
-        # Obtener estadísticas de los equipos
-        def get_team_stats(team_name, league_id, season=2023):
+        # Función para obtener estadísticas de los equipos
+        def get_team_stats(team_name, league_id, season=SEASON):
             url = "https://v3.football.api-sports.io/teams/statistics"
             headers = {
                 "x-apisports-key": API_FOOTBALL_API_KEY
@@ -114,12 +72,18 @@ if st.button("Enviar"):
                 st.error(f"Error al obtener estadísticas para {team_name}: {response.status_code} - {response.text}")
                 return None
 
-        stats_local = get_team_stats(equipo_local, league_id)
-        stats_visitante = get_team_stats(equipo_visitante, league_id)
+        stats_local = get_team_stats(equipo_local, LEAGUE_ID, SEASON)
+        stats_visitante = get_team_stats(equipo_visitante, LEAGUE_ID, SEASON)
 
         if stats_local and stats_visitante:
             # Preparar el prompt para X AI
-            prompt = f"Basándote en las siguientes estadísticas, predice el resultado del partido entre {equipo_local} y {equipo_visitante}.\n\nEstadísticas {equipo_local}: {stats_local}\n\nEstadísticas {equipo_visitante}: {stats_visitante}\n\nPredicción:"
+            prompt = (
+                f"Basándote en las siguientes estadísticas, predice el resultado del partido entre "
+                f"{equipo_local} y {equipo_visitante}.\n\n"
+                f"Estadísticas {equipo_local}: {stats_local}\n\n"
+                f"Estadísticas {equipo_visitante}: {stats_visitante}\n\n"
+                f"Predicción:"
+            )
 
             # Configurar la solicitud a X AI
             xai_url = "https://api.x.ai/v1/chat/completions"
