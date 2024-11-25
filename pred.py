@@ -6,7 +6,6 @@ api_football_key = st.secrets["api_football_key"]
 xai_api_key = st.secrets["xai_api_key"]
 
 def predict_match_winner(home_team, away_team):
-    # Realizar solicitud a API-Football
     url = "https://api-football-v1.p.rapidapi.com/v3/predictions"
     headers = {
         "x-rapidapi-key": api_football_key,
@@ -17,10 +16,11 @@ def predict_match_winner(home_team, away_team):
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
 
-    if response.status_code == 200 and data['response']:
+    if response.status_code == 200 and 'response' in data and data['response']:
         prediction = data['response'][0]['predictions']['winner']
-        return prediction['name']
+        return prediction['name'] if prediction else "No winner predicted."
     else:
+        st.error(f"Error: {data.get('message', 'No prediction available.')}")
         return "Prediction not available."
 
 def ask_xai(prompt):
