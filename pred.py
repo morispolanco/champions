@@ -13,8 +13,26 @@ st.title("Chatbot de Predicción de la Champions League")
 # Barra lateral para selección de equipos
 st.sidebar.header("Selecciona los Equipos")
 
+# Función para obtener las ligas que coinciden con la búsqueda
+def buscar_ligas(termino_busqueda="Champions League", temporada=2023):
+    url = "https://v3.football.api-sports.io/leagues"
+    headers = {
+        "x-apisports-key": API_FOOTBALL_API_KEY
+    }
+    params = {
+        "search": termino_busqueda,
+        "season": temporada
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        return data["response"]
+    else:
+        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
+        return []
+
 # Función para obtener el ID de la liga
-def get_league_id(league_name="Champions League", season=2023):
+def get_league_id(league_name="UEFA Champions League", season=2023):
     url = "https://v3.football.api-sports.io/leagues"
     headers = {
         "x-apisports-key": API_FOOTBALL_API_KEY
