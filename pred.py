@@ -1,106 +1,60 @@
-# app.py
-
 import streamlit as st
 import requests
 
-# Configurar las claves desde los secrets
-API_FOOTBALL_API_KEY = st.secrets["API_FOOTBALL_API_KEY"]
-XAI_API_KEY = st.secrets["XAI_API_KEY"]
+# Cargar claves API desde los secrets
+api_football_key = st.secrets["api_football_key"]
+xai_api_key = st.secrets["xai_api_key"]
 
-# Título de la aplicación
-st.title("Depuración y Configuración de la Champions League en API-Football")
-
-# Temporada
-SEASON = 2023  # Ajusta según sea necesario
-
-# Función para listar todas las ligas disponibles
-def listar_todas_ligas(temporada=SEASON):
-    url = "https://v3.football.api-sports.io/leagues"
+def predict_match_winner(home_team, away_team):
+    # Realizar solicitud a API-Football
+    url = "https://api-football-v1.p.rapidapi.com/v3/predictions"
     headers = {
-        "x-apisports-key": API_FOOTBALL_API_KEY
+        "x-rapidapi-key": api_football_key,
+        "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
     }
-    params = {
-        "season": temporada
-    }
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        ligas = data.get("response", [])
-        st.subheader(f"Todas las Ligas Disponibles para la Temporada {temporada}:")
-        for liga in ligas:
-            nombre_liga = liga["league"]["name"]
-            id_liga = liga["league"]["id"]
-            pais = liga["country"]["name"]
-            st.write(f"- **{nombre_liga}** (ID: {id_liga}) - País: {pais}")
-    else:
-        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
+    params = {"home_team": home_team, "away_team": away_team}
 
-# Función para buscar ligas por palabra clave
-def buscar_ligas_por_palabra_clave(palabra_clave="Champions", temporada=SEASON):
-    url = "https://v3.football.api-sports.io/leagues"
+    response = requests.get(url, headers=headers, params=params)
+    data = response.json()
+
+    if response.status_code == 200 and data['response']:
+        prediction = data['response'][0]['predictions']['winner']
+        return prediction['name']
+    else:
+        return "Prediction not available."
+
+def ask_xai(prompt):
+    url = "https://api.x.ai/v1/chat/completions"
     headers = {
-        "x-apisports-key": API_FOOTBALL_API_KEY
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {xai_api_key}"
     }
-    params = {
-        "search": palabra_clave,
-        "season": temporada
+    data = {
+        "messages": [
+            {"role": "system", "content": "You are a writer assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        "model": "grok-beta",
+        "stream": False,
+        "temperature": 0
     }
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        return data["response"]
-    else:
-        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
-        return []
 
-# Función para listar ligas por país
-def listar_ligas_por_pais(pais="Europe", temporada=SEASON):
-    url = "https://v3.football.api-sports.io/leagues"
-    headers = {
-        "x-apisports-key": API_FOOTball_API_KEY
-    }
-    params = {
-        "season": temporada
-    }
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        ligas = data.get("response", [])
-        st.subheader(f"Ligas en {pais} para la Temporada {temporada}:")
-        for liga in ligas:
-            nombre_liga = liga["league"]["name"]
-            id_liga = liga["league"]["id"]
-            liga_pais = liga["country"]["name"]
-            if liga_pais.lower() == pais.lower():
-                st.write(f"- **{nombre_liga}** (ID: {id_liga})")
-    else:
-        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
+    response = requests.post(url, headers=headers, json=data)
+    return response.json()['choices'][0]['message']['content']
 
-# Opciones de depuración
-st.sidebar.header("Opciones de Depuración")
-opcion = st.sidebar.selectbox(
-    "Selecciona una opción para depurar:",
-    ("Listar Todas las Ligas", "Buscar Ligas por Palabra Clave", "Listar Ligas por País")
-)
+st.title("Predicción de Resultados de la Champions League")
+st.write("Usa la API de API-Football para predecir el ganador de un partido.")
 
-if opcion == "Listar Todas las Ligas":
-    listar_todas_ligas()
-elif opcion == "Buscar Ligas por Palabra Clave":
-    palabra_clave = st.text_input("Ingrese una palabra clave para buscar ligas:", "Champions")
-    if st.button("Buscar"):
-        ligas_encontradas = buscar_ligas_por_palabra_clave(palabra_clave=palabra_clave)
-        if ligas_encontradas:
-            st.subheader(f"Ligas Encontradas con la Palabra Clave '{palabra_clave}':")
-            for liga in ligas_encontradas:
-                nombre_liga = liga["league"]["name"]
-                id_liga = liga["league"]["id"]
-                pais = liga["country"]["name"]
-                st.write(f"- **{nombre_liga}** (ID: {id_liga}) - País: {pais}")
-        else:
-            st.error("No se encontraron ligas que coincidan con la búsqueda de la palabra clave.")
-elif opcion == "Listar Ligas por País":
-    pais = st.text_input("Ingrese el nombre del país para listar ligas:", "Europe")
-    if st.button("Listar"):
-        listar_ligas_por_pais(pais=pais)
+home_team = st.text_input("Equipo local")
+away_team = st.text_input("Equipo visitante")
 
-st.stop()  # Detener la ejecución aquí para evitar errores adicionales
+if st.button("Predecir"):
+    prediction = predict_match_winner(home_team, away_team)
+    st.write(f"Predicción: {prediction}")
+
+st.write("También puedes hacer preguntas a X.AI:")
+prompt = st.text_input("Pregunta a X.AI")
+
+if st.button("Preguntar"):
+    response = ask_xai(prompt)
+    st.write(f"X.AI: {response}")
