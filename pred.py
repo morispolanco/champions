@@ -8,117 +8,99 @@ API_FOOTBALL_API_KEY = st.secrets["API_FOOTBALL_API_KEY"]
 XAI_API_KEY = st.secrets["XAI_API_KEY"]
 
 # Título de la aplicación
-st.title("Chatbot de Predicción de la Champions League")
+st.title("Depuración y Configuración de la Champions League en API-Football")
 
-# Barra lateral para selección de equipos
-st.sidebar.header("Selecciona los Equipos")
-
-# ID de la UEFA Champions League obtenido previamente
-LEAGUE_ID = 2790  # Reemplaza con el ID correcto obtenido
+# Temporada
 SEASON = 2023  # Ajusta según sea necesario
 
-# Función para obtener la lista de equipos
-def get_teams(league_id, season=SEASON):
-    url = "https://v3.football.api-sports.io/teams"
+# Función para listar todas las ligas disponibles
+def listar_todas_ligas(temporada=SEASON):
+    url = "https://v3.football.api-sports.io/leagues"
     headers = {
         "x-apisports-key": API_FOOTBALL_API_KEY
     }
     params = {
-        "league": league_id,
-        "season": season
+        "season": temporada
     }
     response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
         data = response.json()
-        teams = [team["team"]["name"] for team in data["response"]]
-        return teams
+        ligas = data.get("response", [])
+        st.subheader(f"Todas las Ligas Disponibles para la Temporada {temporada}:")
+        for liga in ligas:
+            nombre_liga = liga["league"]["name"]
+            id_liga = liga["league"]["id"]
+            pais = liga["country"]["name"]
+            st.write(f"- **{nombre_liga}** (ID: {id_liga}) - País: {pais}")
     else:
-        st.error(f"Error al obtener los equipos: {response.status_code} - {response.text}")
+        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
+
+# Función para buscar ligas por palabra clave
+def buscar_ligas_por_palabra_clave(palabra_clave="Champions", temporada=SEASON):
+    url = "https://v3.football.api-sports.io/leagues"
+    headers = {
+        "x-apisports-key": API_FOOTBALL_API_KEY
+    }
+    params = {
+        "search": palabra_clave,
+        "season": temporada
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        return data["response"]
+    else:
+        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
         return []
 
-# Obtener la lista de equipos
-teams = get_teams(LEAGUE_ID, SEASON)
-
-if not teams:
-    st.stop()
-
-# Selección de equipos
-equipo_local = st.sidebar.selectbox("Equipo Local", teams)
-equipo_visitante = st.sidebar.selectbox("Equipo Visitante", teams)
-
-# Área de chat
-st.header("Chatbot de Predicción")
-
-# Entrada del usuario
-user_input = st.text_input("Tú:", "Predice el resultado del partido.")
-
-if st.button("Enviar"):
-    if user_input:
-        # Función para obtener estadísticas de los equipos
-        def get_team_stats(team_name, league_id, season=SEASON):
-            url = "https://v3.football.api-sports.io/teams/statistics"
-            headers = {
-                "x-apisports-key": API_FOOTBALL_API_KEY
-            }
-            params = {
-                "team": team_name,
-                "league": league_id,
-                "season": season
-            }
-            response = requests.get(url, headers=headers, params=params)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                st.error(f"Error al obtener estadísticas para {team_name}: {response.status_code} - {response.text}")
-                return None
-
-        stats_local = get_team_stats(equipo_local, LEAGUE_ID, SEASON)
-        stats_visitante = get_team_stats(equipo_visitante, LEAGUE_ID, SEASON)
-
-        if stats_local and stats_visitante:
-            # Preparar el prompt para X AI
-            prompt = (
-                f"Basándote en las siguientes estadísticas, predice el resultado del partido entre "
-                f"{equipo_local} y {equipo_visitante}.\n\n"
-                f"Estadísticas {equipo_local}: {stats_local}\n\n"
-                f"Estadísticas {equipo_visitante}: {stats_visitante}\n\n"
-                f"Predicción:"
-            )
-
-            # Configurar la solicitud a X AI
-            xai_url = "https://api.x.ai/v1/chat/completions"
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {XAI_API_KEY}"
-            }
-            payload = {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a sports prediction assistant specialized in Champions League matches."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "model": "grok-beta",
-                "stream": False,
-                "temperature": 0.7
-            }
-
-            try:
-                response = requests.post(xai_url, headers=headers, json=payload)
-                if response.status_code == 200:
-                    data = response.json()
-                    # Asumiendo que la respuesta de X AI tiene una estructura similar a OpenAI
-                    prediction = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                    st.text_area("Predicción del Chatbot:", prediction, height=200)
-                else:
-                    st.error(f"Error en la API de X AI: {response.status_code} - {response.text}")
-            except Exception as e:
-                st.error(f"Error al obtener la predicción: {e}")
-        else:
-            st.error("No se pudieron obtener las estadísticas de los equipos.")
+# Función para listar ligas por país
+def listar_ligas_por_pais(pais="Europe", temporada=SEASON):
+    url = "https://v3.football.api-sports.io/leagues"
+    headers = {
+        "x-apisports-key": API_FOOTball_API_KEY
+    }
+    params = {
+        "season": temporada
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        ligas = data.get("response", [])
+        st.subheader(f"Ligas en {pais} para la Temporada {temporada}:")
+        for liga in ligas:
+            nombre_liga = liga["league"]["name"]
+            id_liga = liga["league"]["id"]
+            liga_pais = liga["country"]["name"]
+            if liga_pais.lower() == pais.lower():
+                st.write(f"- **{nombre_liga}** (ID: {id_liga})")
     else:
-        st.warning("Por favor, ingresa una consulta.")
+        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
+
+# Opciones de depuración
+st.sidebar.header("Opciones de Depuración")
+opcion = st.sidebar.selectbox(
+    "Selecciona una opción para depurar:",
+    ("Listar Todas las Ligas", "Buscar Ligas por Palabra Clave", "Listar Ligas por País")
+)
+
+if opcion == "Listar Todas las Ligas":
+    listar_todas_ligas()
+elif opcion == "Buscar Ligas por Palabra Clave":
+    palabra_clave = st.text_input("Ingrese una palabra clave para buscar ligas:", "Champions")
+    if st.button("Buscar"):
+        ligas_encontradas = buscar_ligas_por_palabra_clave(palabra_clave=palabra_clave)
+        if ligas_encontradas:
+            st.subheader(f"Ligas Encontradas con la Palabra Clave '{palabra_clave}':")
+            for liga in ligas_encontradas:
+                nombre_liga = liga["league"]["name"]
+                id_liga = liga["league"]["id"]
+                pais = liga["country"]["name"]
+                st.write(f"- **{nombre_liga}** (ID: {id_liga}) - País: {pais}")
+        else:
+            st.error("No se encontraron ligas que coincidan con la búsqueda de la palabra clave.")
+elif opcion == "Listar Ligas por País":
+    pais = st.text_input("Ingrese el nombre del país para listar ligas:", "Europe")
+    if st.button("Listar"):
+        listar_ligas_por_pais(pais=pais)
+
+st.stop()  # Detener la ejecución aquí para evitar errores adicionales
