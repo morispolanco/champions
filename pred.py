@@ -13,15 +13,37 @@ st.title("Chatbot de Predicción de la Champions League")
 # Barra lateral para selección de equipos
 st.sidebar.header("Selecciona los Equipos")
 
+# Función para obtener el ID de la liga
+def get_league_id(league_name="Champions League", season=2023):
+    url = "https://v3.football.api-sports.io/leagues"
+    headers = {
+        "x-apisports-key": API_FOOTBALL_API_KEY
+    }
+    params = {
+        "search": league_name,
+        "season": season
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        for league in data["response"]:
+            if league["league"]["name"].lower() == league_name.lower():
+                return league["league"]["id"]
+        st.error(f"No se encontró la liga '{league_name}'.")
+        return None
+    else:
+        st.error(f"Error al obtener las ligas: {response.status_code} - {response.text}")
+        return None
+
 # Función para obtener la lista de equipos
-def get_teams():
+def get_teams(league_id, season=2023):
     url = "https://v3.football.api-sports.io/teams"
     headers = {
         "x-apisports-key": API_FOOTBALL_API_KEY
     }
     params = {
-        "league": 2,  # Liga de la Champions League, verifica el ID correcto
-        "season": 2023
+        "league": league_id,
+        "season": season
     }
     response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
@@ -29,14 +51,22 @@ def get_teams():
         teams = [team["team"]["name"] for team in data["response"]]
         return teams
     else:
-        st.error("Error al obtener los equipos.")
+        st.error(f"Error al obtener los equipos: {response.status_code} - {response.text}")
         return []
 
-teams = get_teams()
+# Obtener el ID de la liga
+league_id = get_league_id()
+
+if league_id is None:
+    st.stop()
+
+# Obtener la lista de equipos
+teams = get_teams(league_id)
 
 if not teams:
     st.stop()
 
+# Selección de equipos
 equipo_local = st.sidebar.selectbox("Equipo Local", teams)
 equipo_visitante = st.sidebar.selectbox("Equipo Visitante", teams)
 
@@ -49,24 +79,25 @@ user_input = st.text_input("Tú:", "Predice el resultado del partido.")
 if st.button("Enviar"):
     if user_input:
         # Obtener estadísticas de los equipos
-        def get_team_stats(team_name):
+        def get_team_stats(team_name, league_id, season=2023):
             url = "https://v3.football.api-sports.io/teams/statistics"
             headers = {
                 "x-apisports-key": API_FOOTBALL_API_KEY
             }
             params = {
                 "team": team_name,
-                "league": 2,  # Verifica el ID de la liga
-                "season": 2023
+                "league": league_id,
+                "season": season
             }
             response = requests.get(url, headers=headers, params=params)
             if response.status_code == 200:
                 return response.json()
             else:
+                st.error(f"Error al obtener estadísticas para {team_name}: {response.status_code} - {response.text}")
                 return None
 
-        stats_local = get_team_stats(equipo_local)
-        stats_visitante = get_team_stats(equipo_visitante)
+        stats_local = get_team_stats(equipo_local, league_id)
+        stats_visitante = get_team_stats(equipo_visitante, league_id)
 
         if stats_local and stats_visitante:
             # Preparar el prompt para X AI
