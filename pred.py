@@ -1,6 +1,3 @@
-¡Claro! Aquí tienes un ejemplo de cómo podrías crear un chatbot en Streamlit usando la API de x.ai y escondiendo la API Key en los secrets de Streamlit:
-
-```python
 import streamlit as st
 import requests
 import json
